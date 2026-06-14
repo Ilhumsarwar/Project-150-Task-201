@@ -1,0 +1,4 @@
+#ignore .exe, .dll, Makefile
+/Makefile
+*.exe
+*.dll
