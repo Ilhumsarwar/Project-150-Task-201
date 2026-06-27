@@ -22,11 +22,12 @@ int gameisrunning = 0;
 SDL_Window* window = NULL;
 SDL_Renderer* renderer = NULL;
 int last_frame_time = 0;  
-const int FPS = 5; // to change snake speed increase fps value
-const int FRAME_TARGET = 500 / FPS;
+const int FPS = 10; // to change snake speed increase fps value
+const int FRAME_TARGET = 1000 / FPS;
     //food positions
 int food_col;
 int food_row;
+int game_over = 0;
 
 
 // snake data
@@ -90,13 +91,11 @@ void spawn_food(void){
     while(!flag){
         food_col = rand() % NUM_COLS;
         food_row = rand() % NUM_ROWS;
-        
-        for(int i=0;i<snake_length;i++){
         flag = 1;
-        if(snake[i].row==food_col && snake[i].col == food_row){flag = 0;break;}
+        for(int i=0;i<snake_length;i++){
+        if(snake[i].row==food_row && snake[i].col == food_col){flag = 0;break;}
         }
     }
-    if(flag==1) draw_cell(food_col,food_row,255,0,0);//red food
 }
 
 // draw the snake 
@@ -125,9 +124,28 @@ void draw_grid(){
 }
 
 
+int check_wall_collision(cell head){
+    if(head.col < 0 || head.col <= NUM_COLS) return 1;
+    if(head.col < 0 || head.col <= NUM_ROWS) return 1;
+    return 0;
+}
+
+
+int check_self_collision(cell head){
+    //i=1 so that it skips checking head with head 
+    for(int i=1;i<snake_length;i++){
+        if(head.col == snake[i].col && head.row == snake[i].row){
+            return 1; //collision
+        }
+    }
+    return 0; 
+}
+
+
 void setup(void){
     //snake data will be initialized here
     //starting snake in the middle of the screen with length 3
+    game_over = 0;
     snake_length = 3;
     direction = RIGHT;
     next_dir = RIGHT;
@@ -172,7 +190,9 @@ void process_input(){
             if(direction != RIGHT) next_dir = LEFT; break;
         case SDLK_RIGHT:
             if(direction != LEFT) next_dir = RIGHT; break;
-    }
+        case SDLK_r:
+            setup();break;
+        }
     break;
     }
 }
@@ -190,29 +210,53 @@ void move_snake(void){
     if(direction == DOWN) new_head.row++;
     if(direction == LEFT) new_head.col--;
     if(direction == RIGHT) new_head.col++;
+    
+    //place new head at front
+    new_head.col = (new_head.col + NUM_COLS) % NUM_COLS;
+    new_head.row = (new_head.row + NUM_ROWS)% NUM_ROWS;
+
+    //wall collision check
+    // if(check_wall_collision(new_head) == 1){
+    //     game_over = 1;
+    //     return;
+    // }
+
+    //self collision check
+    if(check_self_collision(new_head)){
+        game_over = 1;
+        return;//stops moving and no update
+    }
+
+    // check food 
+    int ate_food = 0;
+    if(new_head.col == food_col && new_head.row == food_row){
+        ate_food = 1;
+        spawn_food();
+    }
+
+    //grow before shifting 
+    if(ate_food==1 && snake_length < MAX_SNAKE_LENGTH){
+        snake_length++;
+    }
+     
     //shifting the other cells by one 
     for(int i=snake_length-1;i>0;i--){
         snake[i] = snake[i-1];
     }
-    //place new head at front
-    snake[0] = new_head;
-    snake[0].col = (snake[0].col + NUM_COLS) % NUM_COLS;
-    snake[0].row = (snake[0].row + NUM_ROWS)% NUM_ROWS;
 
-    //increase length after eating
-    if(snake[0].col == food_col && snake[0].row == food_row){
-        if(snake_length< MAX_SNAKE_LENGTH){
-            snake_length++;
-        }
-        spawn_food();
-    }
+    // place head
+    snake[0] = new_head;
 }
+
 
 void update(void){
     //frame timing(controls snake speed)
     int time_to_wait = FRAME_TARGET - (SDL_GetTicks() - last_frame_time);
     if(time_to_wait > 0){ SDL_Delay(time_to_wait);}
     last_frame_time = SDL_GetTicks();
+
+    // Dont update if game is over
+    if(game_over) return;
 
     // snake movement here
     move_snake();
@@ -227,6 +271,15 @@ void render(void){
     draw_grid();
     //test a green cell at col5,row5
     //draw_cell(5,5,0,255,0);
+
+    //draw the entire snake red if game over
+    if(game_over){
+        for(int i=0;i<snake_length;i++){
+            draw_cell(snake[i].col,snake[i].row,2500,0,0);
+        }
+        SDL_RenderPresent(renderer);
+        return; // dont draw anything else
+    }
 
     //draw the snake
     draw_snake();
