@@ -2,6 +2,7 @@
 #include<stdlib.h>
 #include<SDL2/SDL.h>
 #include<time.h>
+#include<SDL2/SDL_ttf.h>
 
 //defines
 const int WINDOW_WIDTH = 500;
@@ -28,6 +29,8 @@ const int FRAME_TARGET = 1000 / FPS;
 int food_col;
 int food_row;
 int game_over = 0;
+TTF_Font * font = NULL;
+int score = 0;
 
 
 // snake data
@@ -69,8 +72,36 @@ int initialize_window(){
         return 0;
     }
 
+    //ttf initialize setup
+    if(TTF_Init()!=0){
+        fprintf(stderr,"TTF Init Error: %s\n",TTF_GetError());
+        return 0;
+    }
+    font = TTF_OpenFont("CHILLER.ttf",24); // 24 = font size
+    if(!font){
+        fprintf(stderr,"Font Error:%s\n",TTF_GetError());
+        return 0;
+    }
+
     return 1;
 }
+
+//ttf text draw function
+void draw_text(const char* text,int x,int y,int r,int g,int b){
+    SDL_Color color = {255,255,255,255};
+    SDL_Surface* surface = TTF_RenderText_Solid(font,text,color);
+    SDL_Texture * texture = SDL_CreateTextureFromSurface(renderer,surface);
+
+    SDL_Rect dst;
+    dst.x = x;
+    dst.y = y;
+    SDL_QueryTexture(texture,NULL,NULL,&dst.w,&dst.h);
+    SDL_RenderCopy(renderer,texture,NULL,&dst);
+
+    SDL_FreeSurface(surface);
+    SDL_DestroyTexture(texture);
+}
+
 
 // draws a single cell on the grid
 void draw_cell(int col,int row, int r,int g,int b){
@@ -146,6 +177,7 @@ void setup(void){
     //snake data will be initialized here
     //starting snake in the middle of the screen with length 3
     game_over = 0;
+    score = 0;
     snake_length = 3;
     direction = RIGHT;
     next_dir = RIGHT;
@@ -231,6 +263,7 @@ void move_snake(void){
     int ate_food = 0;
     if(new_head.col == food_col && new_head.row == food_row){
         ate_food = 1;
+        score += 5;
         spawn_food();
     }
 
@@ -286,10 +319,18 @@ void render(void){
     // draw the food
     draw_cell(food_col,food_row,255,0,0); // red food
     
+    //draw score on screen top left
+    char score_text[30];
+    sprintf(score_text,"score: %d",score);
+    draw_text(score_text,10,10,255,255,255);
+
+
     SDL_RenderPresent(renderer);
 }
 
 void destroy_window(void){
+    TTF_CloseFont(font);
+    TTF_Quit();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
