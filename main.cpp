@@ -31,7 +31,7 @@ int food_row;
 int game_over = 0;
 TTF_Font * font = NULL;
 int score = 0;
-
+int high_score = 0;
 
 // snake data
 typedef struct{
@@ -46,7 +46,7 @@ int next_dir = RIGHT; // direction after input(prevents instant reverse)
 
 
     // 1. Initialize sdl2
-int initialize_window(){
+    int initialize_window(){
 
     if(SDL_Init(SDL_INIT_EVERYTHING) != 0){
         return 0;
@@ -58,7 +58,7 @@ int initialize_window(){
         SDL_WINDOWPOS_CENTERED,
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        0
+        SDL_WINDOW_RESIZABLE
     );
 
     if(!window){
@@ -88,7 +88,7 @@ int initialize_window(){
 
 //ttf text draw function
 void draw_text(const char* text,int x,int y,int r,int g,int b){
-    SDL_Color color = {255,255,255,255};
+    SDL_Color color = {Uint8(r),Uint8(g),Uint8(b),255};
     SDL_Surface* surface = TTF_RenderText_Solid(font,text,color);
     SDL_Texture * texture = SDL_CreateTextureFromSurface(renderer,surface);
 
@@ -156,8 +156,8 @@ void draw_grid(){
 
 
 int check_wall_collision(cell head){
-    if(head.col < 0 || head.col <= NUM_COLS) return 1;
-    if(head.col < 0 || head.col <= NUM_ROWS) return 1;
+    if(head.col < 0 || head.col >= NUM_COLS) return 1;
+    if(head.row < 0 || head.row >= NUM_ROWS) return 1;
     return 0;
 }
 
@@ -171,7 +171,6 @@ int check_self_collision(cell head){
     }
     return 0; 
 }
-
 
 void setup(void){
     //snake data will be initialized here
@@ -223,7 +222,7 @@ void process_input(){
         case SDLK_RIGHT:
             if(direction != LEFT) next_dir = RIGHT; break;
         case SDLK_r:
-            setup();break;
+            if(game_over==1) setup();break;
         }
     break;
     }
@@ -243,18 +242,22 @@ void move_snake(void){
     if(direction == LEFT) new_head.col--;
     if(direction == RIGHT) new_head.col++;
     
-    //place new head at front
-    new_head.col = (new_head.col + NUM_COLS) % NUM_COLS;
-    new_head.row = (new_head.row + NUM_ROWS)% NUM_ROWS;
+    // //place new head at front
+    // new_head.col = (new_head.col + NUM_COLS) % NUM_COLS;
+    // new_head.row = (new_head.row + NUM_ROWS)% NUM_ROWS;
 
     //wall collision check
-    // if(check_wall_collision(new_head) == 1){
-    //     game_over = 1;
-    //     return;
-    // }
+    if(check_wall_collision(new_head) == 1){
+        
+    if(high_score <= score) high_score = score;
+        game_over = 1;
+        return;
+    }
 
     //self collision check
     if(check_self_collision(new_head)){
+        
+    if(high_score <= score) high_score = score;
         game_over = 1;
         return;//stops moving and no update
     }
@@ -303,15 +306,37 @@ void render(void){
     // Grid lines draw
     draw_grid();
     //test a green cell at col5,row5
+
     //draw_cell(5,5,0,255,0);
 
     //draw the entire snake red if game over
     if(game_over){
         for(int i=0;i<snake_length;i++){
-            draw_cell(snake[i].col,snake[i].row,2500,0,0);
+            draw_cell(snake[i].col,snake[i].row,255,0,0);
         }
+    
+        //game over
+        draw_text("Game Over",165,180,255,0,0); // red, centered
+
+
+    // current score
+    char score_text[50];
+    sprintf(score_text, "Score: %d",score);
+    draw_text(score_text,190,220,255,255,255);
+
+    // highest score
+    char high_score_text[50];
+    sprintf(high_score_text, "Best: %d",high_score);
+    draw_text(high_score_text,190,250,255,215,0);
+
+    //restart prompt - blinking effect
+    Uint32 ticks = SDL_GetTicks();
+    if((ticks/500)%2==0) // blinks every 500ms
+    draw_text("Press R to Restart",120,300,0,255,0);
+    
         SDL_RenderPresent(renderer);
-        return; // dont draw anything else
+    return;
+    
     }
 
     //draw the snake
