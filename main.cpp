@@ -12,6 +12,10 @@ const char* WINDOW_TITLE = "Snake Game";
 #define NUM_COLS (WINDOW_HEIGHT / CELL_SIZE) //no. of columns in  a grid
 #define NUM_ROWS (WINDOW_WIDTH / CELL_SIZE)
 #define MAX_SNAKE_LENGTH (NUM_COLS * NUM_ROWS) 
+
+//static obstacles
+#define MAX_OBSTACLES 10
+
 //direction constanst for easier understanding
 #define UP 0
 #define DOWN 1
@@ -19,7 +23,7 @@ const char* WINDOW_TITLE = "Snake Game";
 #define RIGHT 3
 
 //global variables
-int gameisrunning = 0;
+int game_is_running = 0;
 SDL_Window* window = NULL;
 SDL_Renderer* renderer = NULL;
 int last_frame_time = 0;  
@@ -46,6 +50,9 @@ int snake_length = 0; // how many cells currently
 int direction = RIGHT; // current direction
 int next_dir = RIGHT; // direction after input(prevents instant reverse)
 
+//obstacle data
+cell obstacles[MAX_OBSTACLES];
+int num_obstacles = 5;
 
     // 1. Initialize sdl2
     int initialize_window(){
@@ -130,6 +137,20 @@ void spawn_food(void){
         }
     }
 }
+// static obstacle spawn
+    void obstacle_spawn(void){
+        int on_food_snakebody = 1;
+        while(on_food_snakebody){
+            for(int i=0;i<num_obstacles;i++){
+                obstacles[i].col = rand() % NUM_COLS;
+                obstacles[i].row = rand() % NUM_ROWS;
+                on_food_snakebody = 0;
+                for(int j=0;j<snake_length;j++){
+                    if(snake[j].row==obstacles[j].col && snake[j].col == obstacles[j].row) on_food_snakebody = 1;
+                }
+            }
+        }
+    }
 
 // extra food after each 5 normal food
 
@@ -140,6 +161,12 @@ void draw_snake(void){
         if(i==0) draw_cell(snake[i].col,snake[i].row,0,255,0);
         //body is light green
         else draw_cell(snake[i].col,snake[i].row,0,150,0);
+    }
+}
+
+void draw_obstacle(void){
+    for(int i=0;i<num_obstacles;i++){
+        draw_cell(obstacles[i].col,obstacles[i].row,120,120,120);
     }
 }
 
@@ -165,6 +192,14 @@ int check_wall_collision(cell head){
     return 0;
 }
 
+int check_obstacle_collision(cell head){
+    for(int i=0;i<num_obstacles;i++){
+        if(obstacles[i].col == head.col && obstacles[i].row == head.row){
+            return 1;
+        }
+    }
+    return 0;
+}
 
 int check_self_collision(cell head){
     //i=1 so that it skips checking head with head 
@@ -200,6 +235,7 @@ void setup(void){
     // using srand so that every time the pattern changes
     srand(time(NULL));
     spawn_food();
+    obstacle_spawn();//after food so that no overlap occurs
 }
 
 void process_input(){
@@ -207,13 +243,13 @@ void process_input(){
     SDL_PollEvent(&event);
     switch(event.type){
         case SDL_QUIT:
-            gameisrunning = 0;
+            game_is_running = 0;
             break;
 
         case SDL_KEYDOWN:
         
         switch (event.key.keysym.sym){
-                case SDLK_ESCAPE: gameisrunning = 0;
+                case SDLK_ESCAPE: game_is_running = 0;
                 break;
         // arrow keys change direction
         // but need to prevent snake from going directly opposite direction
@@ -258,12 +294,15 @@ void move_snake(void){
 
     //wall collision check
     if(check_wall_collision(new_head) == 1){
-        
     if(high_score <= score) high_score = score;
         game_over = 1;
         return;
     }
-
+    if(check_obstacle_collision(new_head) == 1){
+    if(high_score <= score) high_score = score;
+        game_over = 1;
+        return;
+    }
     //self collision check
     if(check_self_collision(new_head)){
         
@@ -278,6 +317,7 @@ void move_snake(void){
         ate_food = 1;
         score += 5;
         spawn_food();
+        obstacle_spawn();
     }
 
     //grow before shifting 
@@ -325,10 +365,14 @@ void render(void){
         draw_text("SNAKE GAME",190,150,0,250,0);
         draw_text("Use Arrow keys to move",190,200,255,255,255);
         draw_text("Press ENTER to start the game",190,250,255,0,0);
+        SDL_RenderPresent(renderer);
+        return;
     }
     //pause screen
     if(paused==1){
         draw_text("Press P to resume or Pause",190,220,255,255,255);
+         SDL_RenderPresent(renderer);
+        return;
     }
     //draw the entire snake red if game over
     if(game_over){
@@ -336,8 +380,8 @@ void render(void){
             draw_cell(snake[i].col,snake[i].row,255,0,0);
         }
     
-        //game over
-        draw_text("Game Over",165,180,255,0,0); // red, centered
+    //game over
+    draw_text("Game Over",165,180,255,0,0); // red, centered
     // current score
     char score_text[50];
     sprintf(score_text, "Score: %d",score);
@@ -362,7 +406,8 @@ void render(void){
     draw_snake();
     // draw the food
     draw_cell(food_col,food_row,255,0,0); // red food
-    
+
+    draw_obstacle();
     //draw score on screen top left
     char score_text[30];
     sprintf(score_text,"score: %d",score);
@@ -382,16 +427,15 @@ void destroy_window(void){
 
 
 int main(int argc,char* argv[]){
-    gameisrunning = initialize_window();
+    game_is_running = initialize_window();
 
     setup();
 
-    while(gameisrunning){
+    while(game_is_running){
         process_input();
         update();
         render();
     }
-
     destroy_window();
     return 0;
 }
