@@ -230,6 +230,9 @@ void process_input(){
         
         case SDLK_RETURN:
             if(game_started == 0){ game_started = 1; break;} 
+        case SDLK_p:
+            if(paused==0){ paused = 1;break;}
+            else{ paused = 0; break;}
         }
     break;
     }
@@ -301,6 +304,7 @@ void update(void){
     // Dont update if game is over
     if(game_over) return;
     if(game_started == 0) return; // dont update if game not started
+    if(paused==1) return; // no update when paused
     // snake movement here
     move_snake();
 }
@@ -318,11 +322,14 @@ void render(void){
 
     // game start screen
     if(game_started == 0){
-        draw_text("SNAKE GAME",150,150,0,250,0);
-        draw_text("Use Arrow keys to move",200,200,255,255,255);
-        draw_text("Press ENTER to start the game",250,250,255,0,0);
+        draw_text("SNAKE GAME",190,150,0,250,0);
+        draw_text("Use Arrow keys to move",190,200,255,255,255);
+        draw_text("Press ENTER to start the game",190,250,255,0,0);
     }
-
+    //pause screen
+    if(paused==1){
+        draw_text("Press P to resume or Pause",190,220,255,255,255);
+    }
     //draw the entire snake red if game over
     if(game_over){
         for(int i=0;i<snake_length;i++){
