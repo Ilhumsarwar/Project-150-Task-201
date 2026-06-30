@@ -8,9 +8,9 @@
 const int WINDOW_WIDTH = 500;
 const int WINDOW_HEIGHT = 500;
 const char* WINDOW_TITLE = "Snake Game";
-#define NUM_COLS 25 //no. of columns in  a grid
-#define NUM_ROWS 25
-#define CELL_SIZE (WINDOW_WIDTH / NUM_COLS) //size of each cell in pixels
+#define CELL_SIZE  20 //size of each cell in pixels
+#define NUM_COLS (WINDOW_HEIGHT / CELL_SIZE) //no. of columns in  a grid
+#define NUM_ROWS (WINDOW_WIDTH / CELL_SIZE)
 #define MAX_SNAKE_LENGTH (NUM_COLS * NUM_ROWS) 
 //direction constanst for easier understanding
 #define UP 0
@@ -32,6 +32,8 @@ int game_over = 0;
 TTF_Font * font = NULL;
 int score = 0;
 int high_score = 0;
+int game_started = 0;
+int paused = 0;
 
 // snake data
 typedef struct{
@@ -68,7 +70,7 @@ int next_dir = RIGHT; // direction after input(prevents instant reverse)
 
     renderer  = SDL_CreateRenderer(window, -1, 0);
     if(!renderer){
-        fprintf(stderr, "Renerer error: %s\n", SDL_GetError());
+        fprintf(stderr, "Renderer error: %s\n", SDL_GetError());
         return 0;
     }
 
@@ -128,6 +130,8 @@ void spawn_food(void){
         }
     }
 }
+
+// extra food after each 5 normal food
 
 // draw the snake 
 void draw_snake(void){
@@ -223,6 +227,9 @@ void process_input(){
             if(direction != LEFT) next_dir = RIGHT; break;
         case SDLK_r:
             if(game_over==1) setup();break;
+        
+        case SDLK_RETURN:
+            if(game_started == 0){ game_started = 1; break;} 
         }
     break;
     }
@@ -293,7 +300,7 @@ void update(void){
 
     // Dont update if game is over
     if(game_over) return;
-
+    if(game_started == 0) return; // dont update if game not started
     // snake movement here
     move_snake();
 }
@@ -309,6 +316,13 @@ void render(void){
 
     //draw_cell(5,5,0,255,0);
 
+    // game start screen
+    if(game_started == 0){
+        draw_text("SNAKE GAME",150,150,0,250,0);
+        draw_text("Use Arrow keys to move",200,200,255,255,255);
+        draw_text("Press ENTER to start the game",250,250,255,0,0);
+    }
+
     //draw the entire snake red if game over
     if(game_over){
         for(int i=0;i<snake_length;i++){
@@ -317,8 +331,6 @@ void render(void){
     
         //game over
         draw_text("Game Over",165,180,255,0,0); // red, centered
-
-
     // current score
     char score_text[50];
     sprintf(score_text, "Score: %d",score);
